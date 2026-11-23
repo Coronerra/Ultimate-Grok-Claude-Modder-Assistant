@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""tomd — convert a file or URL to markdown with markitdown."""
+from __future__ import annotations
+
+import os as _os, sys as _sys
+_KIT_LIB = _os.environ.get("KIT_LIB") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "lib")
+if _KIT_LIB not in _sys.path:
+    _sys.path.insert(0, _KIT_LIB)
+# Re-run under the kit venv (created by tools/install.sh) if we're not already in it.
+# Override the venv location with KIT_VENV. install.sh never edits this file.
+_KIT_VENV = _os.environ.get("KIT_VENV") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "venv")
+_KIT_PY = _os.path.join(_KIT_VENV, "bin", "python3")
+if (_os.path.exists(_KIT_PY) and not _os.environ.get("_KIT_REEXEC")
+        and _os.path.realpath(_sys.prefix) != _os.path.realpath(_KIT_VENV)):
+    _os.environ["_KIT_REEXEC"] = "1"
+    _os.execv(_KIT_PY, [_KIT_PY, _os.path.abspath(__file__), *_sys.argv[1:]])
+
+import argparse
+import os
+import sys
+import tempfile
+from pathlib import Path
+from urllib.parse import urlparse
+
+from markitdown import MarkItDown
+
+KNOWN_EXT = {
+    ".html", ".htm", ".pdf", ".docx", ".pptx", ".xlsx", ".xls",
+    ".csv", ".json", ".xml", ".epub", ".zip", ".txt", ".rtf",
+    ".ipynb", ".png", ".jpg", ".jpeg", ".gif", ".wav", ".mp3",
+}
+
+
+def is_url(value: str) -> bool:
+    p = urlparse(value)
+    return p.scheme in ("http", "https") and bool(p.netloc)
+
+
+def default_out_for_file(src: Path) -> Path:
+    suffix = src.suffix.lower()
+    if suffix in KNOWN_EXT or suffix:
+        dest = src.with_suffix(".md")
+    else:
+        dest = Path(str(src) + ".md")
+    if dest.resolve() == src.resolve():
+        dest = src.with_name(src.stem + ".converted.md")
+    return dest
+
+
+def default_out_for_url(url: str) -> Path:
+    path = urlparse(url).path
+    name = Path(path.rstrip("/") or "page").name or "page"
+    stem = Path(name).stem or "page"
+    return Path.cwd() / f"{stem}.md"
+
+
+def convert_file(src: Path) -> str:
+    result = MarkItDown().convert(str(src))
+    return result.text_content or ""
+
+
+def convert_url(url: str) -> str:
+    # Fetch through boxkit so the request is cached, timed out, and
+    # circuit-broken. Pass the response to markitdown.
+    from boxkit import guarded_get
+
+    resp = guarded_get(url, name="tomd")
+    resp.raise_for_status()
+    result = MarkItDown().convert(resp)
+    return result.text_content or ""
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="tomd",
+        description=(
+            "Convert a saved file or a URL to Markdown with markitdown. "
+            "Use this on saved Nexus, wiki, docs HTML, and PDFs "
+            "before a bot reads the raw file."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  tomd docs/saved-page.html\n"
+            "  tomd page.html /tmp/page.md\n"
+            "  tomd https://example.com/doc.pdf /tmp/doc.md\n"
+            "Full path: $KIT_HOME/tools/bin/tomd"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("source", help="File path or http(s) URL")
+    parser.add_argument(
+        "out",
+        nargs="?",
+        default=None,
+        help="Output .md path (default: same name with .md, next to a file or in cwd for a URL)",
+    )
+    args = parser.parse_args(argv)
+
+    source = args.source
+    try:
+        if is_url(source):
+            text = convert_url(source)
+            dest = Path(args.out) if args.out else default_out_for_url(source)
+            in_label = source
+            in_bytes = None
+        else:
+            src = Path(source).expanduser()
+            if not src.is_file():
+                print(f"tomd: not a file: {source}", file=sys.stderr)
+                return 1
+            src = src.resolve()
+            in_bytes = src.stat().st_size
+            text = convert_file(src)
+            dest = Path(args.out).expanduser() if args.out else default_out_for_file(src)
+            in_label = str(src)
+    except Exception as exc:
+        print(f"tomd: conversion failed: {exc}", file=sys.stderr)
+        return 1
+
+    dest = dest.expanduser()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text, encoding="utf-8")
+    out_bytes = dest.stat().st_size
+    if in_bytes:
+        pct = (1 - out_bytes / in_bytes) * 100 if in_bytes else 0
+        print(
+            f"tomd: wrote {dest} ({out_bytes} bytes) from {in_label} "
+            f"({in_bytes} bytes, {pct:.1f}% smaller)",
+            file=sys.stderr,
+        )
+    else:
+        print(f"tomd: wrote {dest} ({out_bytes} bytes) from {in_label}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

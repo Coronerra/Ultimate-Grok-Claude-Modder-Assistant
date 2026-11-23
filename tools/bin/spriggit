@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# spriggit — wrapper for the official Mutagen Spriggit Linux CLI (tested with 0.41.0, GPL-3.0).
+# Serialize ESP/ESM/ESL to YAML or JSON folders, or deserialize back to a plugin.
+# Use only on box COPIES. `deserialize` overwrites its --OutputPath: never point it
+# at a live MO2 mod folder or anything on the modding PC.
+#
+# Not bundled. Download SpriggitLinuxCLI.zip from
+#   https://github.com/Mutagen-Modding/Spriggit/releases
+# unzip into $SPRIGGIT_HOME (default: $KIT_HOME/tools/vendor/spriggit) and verify
+# the zip against the release's published SHA-256 first.
+# Translation packages are net10.0, so a .NET 10 SDK/runtime is needed
+# ($DOTNET_ROOT, default $KIT_HOME/tools/vendor/dotnet, else dotnet on PATH).
+#
+# serialize requires --PackageVersion whenever --GameRelease or --PackageName is set:
+#   spriggit serialize --InputPath copy.esp --OutputPath out/ --GameRelease SkyrimSE \
+#     --PackageName Spriggit.Yaml --PackageVersion 0.41.0
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+KIT_HOME="${KIT_HOME:-$(cd "$HERE/../.." && pwd)}"
+ROOT="${SPRIGGIT_HOME:-$KIT_HOME/tools/vendor/spriggit}"
+BIN="$ROOT/Spriggit.CLI"
+if [[ ! -x "$BIN" ]]; then
+  echo "spriggit: binary missing: $BIN (set SPRIGGIT_HOME; see docs/OPTIONAL-CLIS.md)" >&2
+  exit 1
+fi
+DOTNET_DIR="${DOTNET_ROOT:-$KIT_HOME/tools/vendor/dotnet}"
+if [[ -x "$DOTNET_DIR/dotnet" ]]; then
+  export DOTNET_ROOT="$DOTNET_DIR"; export PATH="$DOTNET_DIR:$PATH"
+elif ! command -v dotnet >/dev/null 2>&1; then
+  echo "spriggit: .NET 10 not found (set DOTNET_ROOT; see docs/OPTIONAL-CLIS.md)" >&2
+  exit 1
+fi
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+export LD_LIBRARY_PATH="${ROOT}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+exec "$BIN" "$@"

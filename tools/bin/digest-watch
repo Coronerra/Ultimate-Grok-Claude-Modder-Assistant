@@ -1,0 +1,307 @@
+#!/usr/bin/env python3
+"""digest-watch — APScheduler template: write a digest only when sources change.
+
+This is a template, not a service. Default mode is --once: check the listed
+files and URLs, write a digest if anything changed, and exit. Do not start
+this as a long-running daemon unless you explicitly pass --schedule and mean
+to keep it in the foreground.
+"""
+from __future__ import annotations
+
+import os as _os, sys as _sys
+_KIT_LIB = _os.environ.get("KIT_LIB") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "lib")
+if _KIT_LIB not in _sys.path:
+    _sys.path.insert(0, _KIT_LIB)
+# Re-run under the kit venv (created by tools/install.sh) if we're not already in it.
+# Override the venv location with KIT_VENV. install.sh never edits this file.
+_KIT_VENV = _os.environ.get("KIT_VENV") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "venv")
+_KIT_PY = _os.path.join(_KIT_VENV, "bin", "python3")
+if (_os.path.exists(_KIT_PY) and not _os.environ.get("_KIT_REEXEC")
+        and _os.path.realpath(_sys.prefix) != _os.path.realpath(_KIT_VENV)):
+    _os.environ["_KIT_REEXEC"] = "1"
+    _os.execv(_KIT_PY, [_KIT_PY, _os.path.abspath(__file__), *_sys.argv[1:]])
+
+import argparse
+import hashlib
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+
+_CACHE = Path(_os.environ.get("KIT_CACHE") or (Path(_os.environ.get("KIT_HOME", str(Path(__file__).resolve().parent.parent.parent))) / "tools" / "cache"))
+STATE_DEFAULT = _CACHE / "digest-watch.state.json"
+OUT_DEFAULT = _CACHE / "digest-watch.digest.md"
+
+
+def is_url(value: str) -> bool:
+    p = urlparse(value)
+    return p.scheme in ("http", "https") and bool(p.netloc)
+
+
+def now_et_label() -> str:
+    """Local time label. Set KIT_TZ (an IANA zone such as Europe/Berlin) to override."""
+    key = _os.environ.get("KIT_TZ")
+    now = None
+    if key:
+        try:
+            from zoneinfo import ZoneInfo
+
+            now = datetime.now(ZoneInfo(key))
+        except Exception:
+            now = None
+    if now is None:
+        now = datetime.now().astimezone()
+        key = now.tzname() or "local"
+    return now.strftime("%Y-%m-%d %I:%M %p") + f" {key}"
+
+
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def read_source(src: str) -> tuple[str, bytes, str]:
+    """Return (kind, body, error). kind is 'file' or 'url'."""
+    if is_url(src):
+        from boxkit import guarded_get
+
+        resp = guarded_get(src, name="digest-watch")
+        resp.raise_for_status()
+        return "url", resp.content, ""
+    path = Path(src).expanduser()
+    if not path.is_file():
+        raise FileNotFoundError(f"not a file: {src}")
+    return "file", path.read_bytes(), ""
+
+
+def load_state(path: Path) -> dict:
+    if not path.is_file():
+        return {"sources": {}}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"sources": {}}
+
+
+def check_sources(sources: list[str], state: dict) -> tuple[list[dict], bool]:
+    previous = state.get("sources", {})
+    results = []
+    changed = False
+    for src in sources:
+        entry = {
+            "source": src,
+            "kind": "url" if is_url(src) else "file",
+            "ok": False,
+            "sha256": None,
+            "bytes": 0,
+            "changed": False,
+            "error": None,
+            "previous_sha256": previous.get(src, {}).get("sha256"),
+        }
+        try:
+            kind, body, _ = read_source(src)
+            digest = sha256_bytes(body)
+            entry["kind"] = kind
+            entry["ok"] = True
+            entry["sha256"] = digest
+            entry["bytes"] = len(body)
+            entry["changed"] = digest != entry["previous_sha256"]
+            if entry["changed"]:
+                changed = True
+        except Exception as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+            # An error after a previous success (or first failure) is a change
+            # worth reporting, so the digest can flag a dead URL or missing file.
+            entry["changed"] = entry["error"] != previous.get(src, {}).get("error")
+            if entry["changed"]:
+                changed = True
+        results.append(entry)
+    # A source that disappeared from the list is not treated as a change here.
+    return results, changed
+
+
+def write_digest(path: Path, results: list[dict], changed: bool, reason: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        f"# Digest-watch report",
+        "",
+        f"- When: {now_et_label()}",
+        f"- Changed: {'yes' if changed else 'no'}",
+        f"- Trigger: {reason}",
+        "",
+        "| Source | Kind | Bytes | Changed | SHA256 or error |",
+        "| --- | --- | --: | --- | --- |",
+    ]
+    for e in results:
+        if e["ok"]:
+            detail = e["sha256"][:16] + "…"
+        else:
+            detail = (e["error"] or "error").replace("|", "/")
+        lines.append(
+            f"| `{e['source']}` | {e['kind']} | {e['bytes']} | "
+            f"{'yes' if e['changed'] else 'no'} | {detail} |"
+        )
+    lines.append("")
+    if changed:
+        lines.append("## What changed")
+        lines.append("")
+        for e in results:
+            if not e["changed"]:
+                continue
+            if e["ok"]:
+                prev = e["previous_sha256"] or "(none)"
+                lines.append(
+                    f"- `{e['source']}`: {e['bytes']} bytes, "
+                    f"sha256 {e['sha256']} (was {prev})"
+                )
+            else:
+                lines.append(f"- `{e['source']}`: {e['error']}")
+        lines.append("")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def save_state(path: Path, results: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sources = {}
+    for e in results:
+        sources[e["source"]] = {
+            "kind": e["kind"],
+            "sha256": e["sha256"],
+            "bytes": e["bytes"],
+            "error": e["error"],
+            "checked": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+    path.write_text(
+        json.dumps({"sources": sources}, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def run_once(sources: list[str], state_path: Path, out_path: Path, force: bool) -> int:
+    state = load_state(state_path)
+    results, changed = check_sources(sources, state)
+    if changed or force or not out_path.is_file():
+        reason = "forced" if force and not changed else "source change or first run"
+        if force and changed:
+            reason = "source change (forced write)"
+        write_digest(out_path, results, changed or force, reason)
+        save_state(state_path, results)
+        print(
+            f"digest-watch: wrote {out_path} (changed={changed or force})",
+            file=sys.stderr,
+        )
+        return 0
+    print(
+        f"digest-watch: no change; left {out_path} as-is",
+        file=sys.stderr,
+    )
+    # Still refresh last-checked in state without rewriting the digest.
+    save_state(state_path, results)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="digest-watch",
+        description=(
+            "APScheduler template: check files and URLs and write a digest "
+            "only when their content changes. Default is a single check "
+            "(--once). This is a template — do not start a long-running "
+            "daemon unless you pass --schedule and mean to keep it in the "
+            "foreground."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  digest-watch --once docs/notes.md\n"
+            "  digest-watch --once --out /tmp/digest.md --state /tmp/digest.state.json a.md b.md\n"
+            "  # foreground scheduler, only if you really want it:\n"
+            "  digest-watch --schedule 15m --out /tmp/digest.md file.log https://example.com/\n"
+            "Full path: $KIT_HOME/tools/bin/digest-watch"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("sources", nargs="+", help="Files or http(s) URLs to watch")
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        default=True,
+        help="Check once and exit (default)",
+    )
+    parser.add_argument(
+        "--schedule",
+        metavar="INTERVAL",
+        default=None,
+        help=(
+            "Foreground APScheduler loop (e.g. 15m, 1h, 300s). "
+            "Do not use this as a background service unless you mean to."
+        ),
+    )
+    parser.add_argument(
+        "--state",
+        default=str(STATE_DEFAULT),
+        help=f"State JSON path (default: {STATE_DEFAULT})",
+    )
+    parser.add_argument(
+        "--out",
+        default=str(OUT_DEFAULT),
+        help=f"Digest markdown path (default: {OUT_DEFAULT})",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Write the digest even if nothing changed",
+    )
+    args = parser.parse_args(argv)
+
+    state_path = Path(args.state).expanduser()
+    out_path = Path(args.out).expanduser()
+
+    if args.schedule:
+        interval = parse_interval(args.schedule)
+        from apscheduler.schedulers.blocking import BlockingScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+
+        print(
+            f"digest-watch: starting foreground scheduler every {args.schedule} "
+            f"({interval} seconds). Ctrl-C to stop. This is not a background service.",
+            file=sys.stderr,
+        )
+        # Run immediately, then on the interval.
+        run_once(args.sources, state_path, out_path, args.force)
+        sched = BlockingScheduler()
+        sched.add_job(
+            run_once,
+            IntervalTrigger(seconds=interval),
+            kwargs={
+                "sources": args.sources,
+                "state_path": state_path,
+                "out_path": out_path,
+                "force": False,
+            },
+            id="digest-watch",
+            coalesce=True,
+            max_instances=1,
+        )
+        try:
+            sched.start()
+        except (KeyboardInterrupt, SystemExit):
+            print("digest-watch: scheduler stopped", file=sys.stderr)
+        return 0
+
+    return run_once(args.sources, state_path, out_path, args.force)
+
+
+def parse_interval(text: str) -> int:
+    raw = text.strip().lower()
+    if raw.endswith("s") and raw[:-1].isdigit():
+        return int(raw[:-1])
+    if raw.endswith("m") and raw[:-1].isdigit():
+        return int(raw[:-1]) * 60
+    if raw.endswith("h") and raw[:-1].isdigit():
+        return int(raw[:-1]) * 3600
+    if raw.isdigit():
+        return int(raw)
+    raise SystemExit(f"digest-watch: bad interval {text!r} (use 300, 15m, or 1h)")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

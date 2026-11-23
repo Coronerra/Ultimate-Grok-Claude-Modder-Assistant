@@ -1,0 +1,28 @@
+# Template for papyrus-tools 0.16.3 (Kiyozz).
+# Copy this file next to a script project before running `papyrus check`.
+# `skse = true` is required so SKSE natives (RegisterForKey, etc.) are not
+# reported as PAP017.
+#
+# Do not run `papyrus fmt` or `papyrus check --fix` on live script
+# or MO2 sources without the owner's go. PAP102 hits on PascalCase Auto properties
+# that plugins already bind should not be "fixed" with `--fix --unsafe`.
+
+game = "skyrim"
+include-fragments = false
+skse = true
+
+# imports = ["../SkyUI/Scripts/Source"]
+# sources = ["Source"]
+
+# [fmt]
+# indent = 2
+# keywords = "lower"
+
+# [lints]
+# "naming/variables" = "allow"
+# "naming/properties" = "allow"
+
+# [build]
+# compiler = "<PATH_TO>\\Caprica.exe"
+# output = "Scripts"
+# optimize = true

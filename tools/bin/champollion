@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# champollion — wrapper for Champollion (Papyrus .pex -> .psc decompiler; tested 1.3.2, LGPL-3.0) under Wine.
+# Not bundled. Download Champollion.v1.3.2.zip from https://github.com/Orvid/Champollion/releases,
+# extract Champollion.exe to $CHAMPOLLION_EXE (default $KIT_HOME/tools/vendor/champollion/Champollion.exe).
+# Needs `wine` on PATH. WINEPREFIX defaults to $KIT_HOME/tools/vendor/wineprefix.
+# Always write output with -p/--psc to a dedicated scratch folder. Never point -p at
+# live script folders or anything on the modding PC.
+#   champollion --version
+#   champollion script.pex -p ./decompiled
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+KIT_HOME="${KIT_HOME:-$(cd "$HERE/../.." && pwd)}"
+EXE="${CHAMPOLLION_EXE:-$KIT_HOME/tools/vendor/champollion/Champollion.exe}"
+export WINEPREFIX="${WINEPREFIX:-$KIT_HOME/tools/vendor/wineprefix}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+[[ -f "$EXE" ]] || { echo "champollion: exe missing: $EXE (see docs/OPTIONAL-CLIS.md)" >&2; exit 1; }
+command -v wine >/dev/null 2>&1 || { echo "champollion: wine is not on PATH" >&2; exit 1; }
+exec wine "$EXE" "$@"

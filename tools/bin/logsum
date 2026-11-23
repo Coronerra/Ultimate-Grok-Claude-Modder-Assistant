@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# logsum — summarize a Papyrus/SKSE/any log with rtk log (oss 1.2.0)
+set -euo pipefail
+
+BIN="$(cd "$(dirname "$0")" && pwd)"
+# rtk location: $RTK env var, else rtk next to this script, else rtk on PATH.
+if [[ -z "${RTK:-}" ]]; then
+  if [[ -x "${BIN}/rtk" ]]; then RTK="${BIN}/rtk"; else RTK="$(command -v rtk || true)"; fi
+fi
+
+usage() {
+  cat <<'EOF'
+Usage: logsum <log>
+       logsum --help
+
+Summarize a Papyrus, SKSE, or any other log with rtk log (Apache-2.0 rtk oss 1.2.0).
+Writes <log>.summary.txt next to the input and prints the summary to stdout.
+
+Always run this before a bot reads a large Papyrus or SKSE log. Prefer this
+wrapper (or `rtk log`) over opening the raw file. Do not use `rtk smart` or
+`rtk read` on these logs: they either keep the whole file or drop the error
+counts. Do not install rtk-proxy (BUSL license); this is the oss binary only.
+
+Examples:
+  logsum /path/to/Papyrus.0.log
+  $KIT_HOME/tools/bin/logsum /path/to/SKSE.log
+
+Env: RTK=/path/to/rtk overrides where the rtk binary is found.
+EOF
+}
+
+if [[ $# -eq 0 ]]; then
+  usage >&2
+  exit 2
+fi
+
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -ne 1 ]]; then
+  echo "logsum: expected one log path" >&2
+  usage >&2
+  exit 2
+fi
+
+LOG="$1"
+if [[ ! -f "$LOG" ]]; then
+  echo "logsum: not a file: $LOG" >&2
+  exit 1
+fi
+
+if [[ -z "$RTK" || ! -x "$RTK" ]]; then
+  echo "logsum: rtk binary not found (set RTK=/path/to/rtk or put rtk on PATH / next to logsum): ${RTK:-<none>}" >&2
+  exit 1
+fi
+
+# Resolve to an absolute path so the written location is unambiguous.
+if command -v realpath >/dev/null 2>&1; then
+  LOG="$(realpath "$LOG")"
+else
+  case "$LOG" in
+    /*) ;;
+    *) LOG="$(pwd)/$LOG" ;;
+  esac
+fi
+
+OUT="${LOG}.summary.txt"
+DIR="$(dirname "$LOG")"
+if [[ ! -w "$DIR" ]]; then
+  echo "logsum: cannot write summary next to log (directory not writable): $DIR" >&2
+  exit 1
+fi
+
+"$RTK" log "$LOG" | tee "$OUT"
+IN_BYTES=$(wc -c < "$LOG" | tr -d ' ')
+OUT_BYTES=$(wc -c < "$OUT" | tr -d ' ')
+IN_LINES=$(wc -l < "$LOG" | tr -d ' ')
+OUT_LINES=$(wc -l < "$OUT" | tr -d ' ')
+echo "logsum: wrote $OUT ($OUT_BYTES bytes, $OUT_LINES lines) from $LOG ($IN_BYTES bytes, $IN_LINES lines)" >&2

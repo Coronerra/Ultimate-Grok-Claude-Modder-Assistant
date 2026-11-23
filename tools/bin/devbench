@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""devbench — tiny client for the DevBench HTTP API (live game, dev only).
+
+Config (env):
+  DEVBENCH_URL    e.g. http://<TAILSCALE_IP>:<DEVBENCH_PORT>   (required)
+  DEVBENCH_SOCKS  e.g. localhost:<SOCKS_PORT>  (userspace Tailscale SOCKS5; optional)
+  DEVBENCH_TIMEOUT seconds, default 15
+
+Commands:
+  devbench health                                   GET  /api/health
+  devbench ping                                     GET  /api/ping (if your build has it)
+  devbench console "<cmd>" [--no-capture]           POST /api/tool/console {action:exec, command, capture:true}
+  devbench papyrus <Script> <Function> [--self <FormID|Plugin.esp:LocalID>] [--args '<json list>']
+                                                    POST /api/tool/papyrus {action:call, ...}
+  devbench inspect <kind> [--json '<extra fields>'] POST /api/tool/inspect {kind, ...}  (kinds: state, mods, refs, ...)
+  devbench raw <METHOD> <path> ['<json body>']      any endpoint
+
+Rules: dev-only tool, read before you change, read back after. Console and
+Papyrus calls change the live game: run them only with the owner's OK. Don't
+expose the port beyond your tailnet. Discover the current schema from your
+DevBench version's docs; field names here match the documented examples.
+"""
+import argparse, json, os, subprocess, sys
+
+def call(method, path, body=None):
+    base = os.environ.get("DEVBENCH_URL")
+    if not base:
+        sys.exit("devbench: set DEVBENCH_URL=http://<TAILSCALE_IP>:<DEVBENCH_PORT>")
+    cmd = ["curl", "-sS", "-m", os.environ.get("DEVBENCH_TIMEOUT", "15"), "-X", method]
+    socks = os.environ.get("DEVBENCH_SOCKS")
+    if socks:
+        cmd += ["--socks5-hostname", socks]
+    if body is not None:
+        cmd += ["-H", "Content-Type: application/json", "--data-binary", json.dumps(body)]
+    cmd.append(base.rstrip("/") + path)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.stderr.write(r.stderr); return r.returncode
+    out = r.stdout
+    try:
+        print(json.dumps(json.loads(out), indent=2))
+    except ValueError:
+        print(out)
+    return 0
+
+def main():
+    ap = argparse.ArgumentParser(prog="devbench", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("health"); sub.add_parser("ping")
+    c = sub.add_parser("console"); c.add_argument("command"); c.add_argument("--no-capture", action="store_true")
+    p = sub.add_parser("papyrus"); p.add_argument("script"); p.add_argument("function")
+    p.add_argument("--self", dest="self_form"); p.add_argument("--args")
+    i = sub.add_parser("inspect"); i.add_argument("kind"); i.add_argument("--json")
+    r = sub.add_parser("raw"); r.add_argument("method"); r.add_argument("path"); r.add_argument("body", nargs="?")
+    a = ap.parse_args()
+    if a.cmd == "health": return call("GET", "/api/health")
+    if a.cmd == "ping": return call("GET", "/api/ping")
+    if a.cmd == "console":
+        return call("POST", "/api/tool/console",
+                    {"action": "exec", "command": a.command, "capture": not a.no_capture})
+    if a.cmd == "papyrus":
+        body = {"action": "call", "script": a.script, "function": a.function}
+        if a.self_form: body["self"] = {"form": a.self_form}
+        if a.args: body["args"] = json.loads(a.args)
+        return call("POST", "/api/tool/papyrus", body)
+    if a.cmd == "inspect":
+        body = {"kind": a.kind}
+        if a.json: body.update(json.loads(a.json))
+        return call("POST", "/api/tool/inspect", body)
+    if a.cmd == "raw":
+        return call(a.method.upper(), a.path, json.loads(a.body) if a.body else None)
+
+if __name__ == "__main__":
+    sys.exit(main())

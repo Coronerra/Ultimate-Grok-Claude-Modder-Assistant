@@ -1,0 +1,7 @@
+# created by tools/install.sh or by the user; never commit
+tools/venv/
+tools/cache/
+tools/vendor/
+tools/bin/rtk
+__pycache__/
+*.pyc

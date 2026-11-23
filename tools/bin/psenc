@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""psenc — run PowerShell on the modding PC over SSH without quoting problems.
+
+Encodes a PowerShell script as UTF-16LE base64 for `powershell -EncodedCommand`,
+which avoids every layer of shell/SSH quoting.
+
+  psenc 'Get-ChildItem "$env:USERPROFILE\\Documents\\My Games" | Select Name'
+  psenc -f script.ps1
+  psenc --ssh <PC_ALIAS> 'Get-Date'        # prints a ready-to-run ssh command
+  psenc --ssh <PC_ALIAS> --run 'Get-Date'  # runs it (read-only commands only, unless approved)
+"""
+import argparse, base64, shlex, subprocess, sys
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="psenc", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("script", nargs="?", help="PowerShell text (or use -f)")
+    ap.add_argument("-f", "--file", help="read PowerShell from a file")
+    ap.add_argument("--ssh", metavar="HOST", help="wrap in an ssh command for HOST")
+    ap.add_argument("--run", action="store_true", help="execute the ssh command")
+    a = ap.parse_args()
+    if a.file:
+        text = open(a.file, encoding="utf-8").read()
+    elif a.script is not None:
+        text = a.script
+    else:
+        text = sys.stdin.read()
+    enc = base64.b64encode(text.encode("utf-16-le")).decode()
+    cmd = f"powershell -NoProfile -NonInteractive -EncodedCommand {enc}"
+    if not a.ssh:
+        print(cmd); return 0
+    argv = ["ssh", a.ssh, cmd]
+    if not a.run:
+        print(" ".join(shlex.quote(x) for x in argv)); return 0
+    return subprocess.call(argv)
+
+if __name__ == "__main__":
+    sys.exit(main())

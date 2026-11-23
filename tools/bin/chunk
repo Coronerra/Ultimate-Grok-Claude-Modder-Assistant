@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""chunk — split a markdown (or text) file into RecursiveChunker pieces plus an index."""
+from __future__ import annotations
+
+import os as _os, sys as _sys
+_KIT_LIB = _os.environ.get("KIT_LIB") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "lib")
+if _KIT_LIB not in _sys.path:
+    _sys.path.insert(0, _KIT_LIB)
+# Re-run under the kit venv (created by tools/install.sh) if we're not already in it.
+# Override the venv location with KIT_VENV. install.sh never edits this file.
+_KIT_VENV = _os.environ.get("KIT_VENV") or str(__import__("pathlib").Path(__file__).resolve().parent.parent / "venv")
+_KIT_PY = _os.path.join(_KIT_VENV, "bin", "python3")
+if (_os.path.exists(_KIT_PY) and not _os.environ.get("_KIT_REEXEC")
+        and _os.path.realpath(_sys.prefix) != _os.path.realpath(_KIT_VENV)):
+    _os.environ["_KIT_REEXEC"] = "1"
+    _os.execv(_KIT_PY, [_KIT_PY, _os.path.abspath(__file__), *_sys.argv[1:]])
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+from chonkie import RecursiveChunker
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="chunk",
+        description=(
+            "Split a markdown or text file with chonkie RecursiveChunker "
+            "(character tokenizer, chunk_size=2048 by default) and write "
+            "one file per chunk plus index.json and index.md. Use this when "
+            "a bot should retrieve passages from a long knowledge-base doc "
+            "instead of reading the whole file."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  chunk docs/long-reference.md\n"
+            "  chunk notes.md /tmp/notes.chunks\n"
+            "Full path: $KIT_HOME/tools/bin/chunk"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("md", help="Markdown or text file to chunk")
+    parser.add_argument(
+        "outdir",
+        nargs="?",
+        default=None,
+        help="Output directory (default: <file>.chunks next to the source)",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=2048,
+        help="RecursiveChunker chunk_size (default: 2048 characters)",
+    )
+    args = parser.parse_args(argv)
+
+    src = Path(args.md).expanduser()
+    if not src.is_file():
+        print(f"chunk: not a file: {args.md}", file=sys.stderr)
+        return 1
+    src = src.resolve()
+    text = src.read_text(encoding="utf-8", errors="replace")
+    if not text.strip():
+        print(f"chunk: file is empty: {src}", file=sys.stderr)
+        return 1
+
+    outdir = Path(args.outdir).expanduser() if args.outdir else Path(str(src) + ".chunks")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    chunker = RecursiveChunker(chunk_size=args.chunk_size)
+    chunks = chunker(text)
+
+    entries = []
+    for i, ch in enumerate(chunks, start=1):
+        name = f"chunk-{i:04d}.md"
+        path = outdir / name
+        body = ch.text if ch.text.endswith("\n") else ch.text + "\n"
+        path.write_text(body, encoding="utf-8")
+        entries.append(
+            {
+                "id": i,
+                "file": name,
+                "start_index": ch.start_index,
+                "end_index": ch.end_index,
+                "token_count": ch.token_count,
+                "chars": len(ch.text),
+            }
+        )
+
+    index = {
+        "source": str(src),
+        "source_bytes": src.stat().st_size,
+        "source_chars": len(text),
+        "chunker": "RecursiveChunker",
+        "tokenizer": "character",
+        "chunk_size": args.chunk_size,
+        "count": len(entries),
+        "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "chunks": entries,
+    }
+    (outdir / "index.json").write_text(
+        json.dumps(index, indent=2) + "\n", encoding="utf-8"
+    )
+
+    lines = [
+        f"# Chunk index for `{src.name}`",
+        "",
+        f"- Source: `{src}`",
+        f"- Chunks: {len(entries)}",
+        f"- Chunker: RecursiveChunker (character, chunk_size={args.chunk_size})",
+        f"- Source size: {src.stat().st_size} bytes, {len(text)} characters",
+        "",
+        "| # | File | Start | End | Tokens | Chars |",
+        "| --: | --- | --: | --: | --: | --: |",
+    ]
+    for e in entries:
+        lines.append(
+            f"| {e['id']} | `{e['file']}` | {e['start_index']} | {e['end_index']} "
+            f"| {e['token_count']} | {e['chars']} |"
+        )
+    lines.append("")
+    (outdir / "index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    avg = (sum(e["chars"] for e in entries) / len(entries)) if entries else 0
+    print(
+        f"chunk: wrote {len(entries)} chunks (avg {avg:.0f} chars) to {outdir} "
+        f"from {src} ({src.stat().st_size} bytes). See {outdir / 'index.md'}",
+        file=sys.stderr,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
