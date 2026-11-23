@@ -12,6 +12,8 @@ Install: `bash tools/install.sh --skills-dir <DIR>` (one step; see `SETUP.md` A2
 | `bin/digest-watch --once --out D.md --state S.json <files/urls…>` | Writes a digest only when a source changed. `--schedule 15m` runs a **foreground** loop; don't daemonize by accident. |
 | `bin/socks5nc <proxyhost:port> <host> <port>` | Minimal SOCKS5 ProxyCommand for SSH through userspace Tailscale. |
 | `bin/devbench <health\|inspect\|console\|papyrus\|raw>` | DevBench HTTP API client (`DEVBENCH_URL`, `DEVBENCH_SOCKS`); see `docs/DEVBENCH-API.md`. |
+| `bin/whats-here <look\|near\|ref\|effects\|watch>` | Read-only live observations through DevBench (`DEVBENCH_URL`, `DEVBENCH_SOCKS`); see `docs/whats-here.md`. |
+| `bin/skyrim-winner` | Which plugin wins a record (toolkit 4.2.0 bugfix; needs Node + xEdit on the PC). |
 | `bin/psenc [--ssh HOST [--run]] '<ps>'` | PowerShell -> UTF-16LE base64 `-EncodedCommand` (no quoting problems over SSH). |
 | `bin/spriggit`, `bin/champollion`, `bin/dream_archivetool` | Optional wrappers; tools not bundled (`docs/OPTIONAL-CLIS.md`, `tools/vendor/`). |
 | `extras/inspect_plugin.py` | Optional read-only plugin record listing (needs bethkit). |

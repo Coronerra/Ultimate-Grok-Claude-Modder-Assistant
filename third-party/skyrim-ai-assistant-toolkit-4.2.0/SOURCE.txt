@@ -1,0 +1,24 @@
+Skyrim AI Assistant Toolkit v4.2.0
+Copyright (c) 2026 WingedGuardian
+License: MIT (see LICENSE in this folder)
+Upstream: https://github.com/WingedGuardian/skyrim-ai-assistant-toolkit
+Tag / version: v4.2.0 (2026-11-22)
+
+This folder contains only the attributed files this kit ships:
+  tools/whats-here.py and tools/whats_here/  (read-only live observations)
+  tools/skyrim-winner.js, skyrim-winner.sh, skyrim-winner.test.js
+    (includes the v4.2.0 fix: a plugin + short record ID no longer traces
+    the wrong record when that plugin also overrides a master with the same
+    low bytes)
+
+Adaptations by the Grok Modders Kit (still MIT, original copyright retained):
+  - tools/whats_here/transport.py: optional DEVBENCH_URL / DEVBENCH_SOCKS so
+    a bot box can reach DevBench over Tailscale instead of loopback only;
+    local exe/runtime.json identity checks are skipped in that mode.
+  - tools/whats_here/cli.py: --game-dir may be omitted when DEVBENCH_URL is set;
+    defaults come from DEVBENCH_GAME_DIR or KIT_GAME_DIR.
+  - tools/whats_here/enrichment.py: --check looks for skyrim-winner.sh next to
+    these files (or SKYRIM_WINNER_SH / KIT_WINNER_SH), not only <game-dir>/tools/.
+
+This kit does not ship ToolkitProbe.dll, skyguard, the save vault,
+vr-headless, setup.sh, or the toolkit's houseCARL gateway.

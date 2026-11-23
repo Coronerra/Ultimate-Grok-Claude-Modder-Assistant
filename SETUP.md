@@ -50,7 +50,7 @@ Environment variables (all optional):
 
 Smoke test (install.sh already runs this):
 ```bash
-logsum --help && tomd --help && chunk --help && digest-watch --help && devbench --help && psenc --help
+logsum --help && tomd --help && chunk --help && digest-watch --help && devbench --help && whats-here --help && psenc --help
 "$KIT_HOME/tools/venv/bin/python" -c "from boxkit import guarded_get; print('boxkit ok')"
 ```
 
@@ -132,6 +132,8 @@ Not tested on a real Windows PC yet; read the script before running it. Manual s
 3. `remote-skyrim-modding-session` (every later session)
 4. `housecarl-data-layer-modding` (only if you install houseCARL)
 5. `devbench-gfx-menu-testing` (only if you install DevBench + DevBench GFx)
+6. `skyrim-whats-here` (only if you install DevBench; optional ToolkitProbe adds gaze and bounds)
+7. `triage-and-conflicts`, `skyrim-save`, `skyrim-nif`, `skyrim-audio`, `skyrim-bsa` as needed
 
 Then tell the bot what to remember: your PC alias, game edition(s), MO2 instance path, profile name, `<STAGING_DIR>`, `<BACKUP_DIR>`, and which bot is the Installer (see `templates/bot-roster/`).
 
@@ -153,6 +155,18 @@ DevBench (by alandtse, GPL-3.0 with modding/linking exceptions) is a dev-only SK
 Endpoint examples (inspect, console with `capture:true`, Papyrus call) and the `devbench` client: `docs/DEVBENCH-API.md`. Every-session connection routine: `docs/REMOTE-SESSION.md`.
 
 DevBench GFx (separate SKSE DLL that adds a `gfx` tool for Scaleform menus) is only needed for the `devbench-gfx-menu-testing` skill.
+
+Once DevBench is running, the bot can use `whats-here` (`look`, `near`, `effects`, `watch`) from the box with the same `DEVBENCH_URL` / `DEVBENCH_SOCKS` as `devbench`. See `docs/whats-here.md`.
+
+Optional companions, offered once, never installed by the bot into `Data/`:
+
+| Companion | What it adds |
+| --- | --- |
+| DevBench (Nexus 181326) | Live state, console and Papyrus in the running game. ToolkitProbe needs **1.35+**. |
+| ToolkitProbe (upstream toolkit release zip; not in this kit) | Gaze/hand ray, bounds, textures and a timed watch for `whats-here`. Live-tested on VR; SE/AE experimental. The owner installs it through MO2. See `docs/TOOLKIT-PROBE.md`. |
+| What Am I Looking At (Nexus 199906, SE/AE only) | Crosshair pick file that `whats-here look` will attach if present. |
+
+Each is optional and is another SKSE plugin in the load order. The owner installs them with their mod manager.
 
 ---
 

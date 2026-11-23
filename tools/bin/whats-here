@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""whats-here — read-only look / near / ref / effects / watch through DevBench.
+
+Box/agent side: set DEVBENCH_URL (and DEVBENCH_SOCKS if the box uses userspace
+Tailscale). Commands never launch the game or change it. Upstream code is the
+attributed MIT copy of WingedGuardian's toolkit 4.2.0 What's here, with a
+transport adaptation for remote DevBench (see third-party/.../SOURCE.txt).
+
+  whats-here --help
+  whats-here look --json
+  whats-here near --radius 500 --json
+  whats-here effects --json
+  whats-here watch --seconds 30 --json
+"""
+import sys
+from pathlib import Path
+
+TOOLS = Path(__file__).resolve().parent.parent
+# Prefer the attributed copy shipped in this kit.
+VENDOR_TOOLS = TOOLS.parent / "third-party" / "skyrim-ai-assistant-toolkit-4.2.0" / "tools"
+if not (VENDOR_TOOLS / "whats_here").is_dir():
+    sys.exit("whats-here: missing third-party/skyrim-ai-assistant-toolkit-4.2.0/tools/whats_here")
+sys.path.insert(0, str(VENDOR_TOOLS))
+from whats_here.cli import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

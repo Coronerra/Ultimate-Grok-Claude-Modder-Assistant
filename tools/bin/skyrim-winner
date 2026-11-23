@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Thin wrapper for the attributed toolkit 4.2.0 skyrim-winner (MIT, WingedGuardian).
+# Includes the 4.2.0 bugfix: a plugin + short record ID no longer traces the
+# wrong record when that plugin also overrides a master with the same low bytes.
+# Needs Node and, for a real answer, xEdit's XEditLib on a Windows game install.
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")/../.." && pwd)"
+SH="$HERE/third-party/skyrim-ai-assistant-toolkit-4.2.0/tools/skyrim-winner.sh"
+if [[ ! -f "$SH" ]]; then
+  echo "skyrim-winner: $SH not found" >&2
+  exit 1
+fi
+exec bash "$SH" "$@"

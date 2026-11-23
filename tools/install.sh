@@ -99,7 +99,7 @@ echo "== 4/4 smoke test"
 # shellcheck disable=SC1091
 . "$HERE/env.sh"
 ok=1
-for t in tomd chunk digest-watch devbench psenc; do
+for t in tomd chunk digest-watch devbench whats-here psenc; do
   "$HERE/bin/$t" --help >/dev/null 2>&1 && echo "   $t ok" || { echo "   $t FAILED"; ok=0; }
 done
 "$VENV/bin/python" -c "import boxkit" && echo "   boxkit ok" || { echo "   boxkit FAILED"; ok=0; }

@@ -4,13 +4,14 @@
 | Part | License | File |
 | --- | --- | --- |
 | Scripts and tools: `tools/**` (incl. `install.sh`, `env.sh`, `bin/*`, `lib/boxkit.py`, `extras/*`), `install.bat`, `pc-setup/setup.ps1`, `pc-setup/setup.bat` and `templates/rollback.template.ps1` | **MIT** | `LICENSE` |
+| Attributed copies: `third-party/skyrim-ai-assistant-toolkit-4.2.0/**` (What's here + skyrim-winner, with noted adaptations) | **MIT** (Copyright (c) 2026 WingedGuardian) | that folder's `LICENSE`; [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) |
 | Docs, skills and templates: `*.md` at the top level, `docs/**`, `skills/**`, `templates/**` (except the rollback script) | **CC BY 4.0** | `LICENSE-docs` |
 
 Copyright (c) 2026 Jezebel Graves.
 
 ## What this kit does NOT include (by design)
 - **No game mods or mod files**: no `.esp/.esm/.esl`, `.bsa/.ba2`, meshes, textures, scripts (`.psc/.pex`) or other assets from any mod. Third-party mods are **not redistributed**; link to their official Nexus Mods (or author) pages instead and let users download them.
-- **No third-party binaries.** Users download each tool from its official source and the kit verifies pinned hashes where given.
+- **No third-party binaries.** Users download each tool from its official source and the kit verifies pinned hashes where given. ToolkitProbe.dll is not included (docs only).
 - No game files from Bethesda (the Creation Kit, masters, `Scripts.zip` sources).
 
 ## Third-party software the kit references or calls
@@ -31,7 +32,7 @@ Licenses checked against each project's own LICENSE file (GitHub license API) or
 | Spriggit (Mutagen-Modding) | GPL-3.0 | https://github.com/Mutagen-Modding/Spriggit/blob/dev/LICENSE | 2026-11-22 | not redistributed; users download from source; wrapper only. |
 | dream_archivetool (DreamWeave-MP) | MIT OR Apache-2.0 (LICENSE-MIT + LICENSE-APACHE; bundled fonts have their own licenses) | https://github.com/DreamWeave-MP/dream_archivetool | 2026-11-22 | not redistributed; users download from source; wrapper only. |
 | houseCARL (Avick3110) | GPL-3.0 (GitHub API; "-only" per earlier notes, not re-read) | https://github.com/Avick3110/houseCARL/blob/main/LICENSE | 2026-11-22 | not redistributed; users download from source. |
-| Skyrim AI Assistant Toolkit (WingedGuardian) | MIT | https://github.com/WingedGuardian/skyrim-ai-assistant-toolkit/blob/master/LICENSE | 2026-11-22 | Not redistributed. The skills reference its tools by name but contain no copied code. If any substantial part is ever copied, keep its copyright + MIT notice (THIRD-PARTY-NOTICES). |
+| Skyrim AI Assistant Toolkit (WingedGuardian) | MIT | https://github.com/WingedGuardian/skyrim-ai-assistant-toolkit/blob/master/LICENSE | 2026-11-23 | v4.2.0 What's here and skyrim-winner are **copied with attribution** under `third-party/skyrim-ai-assistant-toolkit-4.2.0/` (copyright + MIT notice kept). Adaptations and the file list are in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). ToolkitProbe, skyguard, the save vault, vr-headless, setup.sh and the toolkit houseCARL gateway are not included. |
 | rtk oss 1.2.0 | Apache-2.0 (do **not** use rtk-proxy, BUSL) | (prior box notes) | not re-checked | Hash only (`tools/bin/rtk.sha256`). |
 | markitdown, chonkie, APScheduler 3.x | MIT | (PyPI metadata, prior notes) | not re-checked | pip-installed by install.sh. |
 | requests-cache / pybreaker / requests | BSD-2-Clause / BSD-3-Clause / Apache-2.0 | (PyPI metadata, prior notes) | not re-checked | pip-installed by install.sh. |
@@ -40,6 +41,6 @@ Licenses checked against each project's own LICENSE file (GitHub license API) or
 
 **Still to verify:** Root Builder (no license stated; custom Nexus permissions). The CKPE and Champollion Nexus pages were not checked; their GitHub licenses are what is recorded.
 
-`tools/bin/socks5nc`, `devbench`, `psenc`, the `spriggit` / `champollion` / `dream_archivetool` wrappers and all other files in this kit are original to the kit (licensed as in the table above). The wrapped tools themselves are not included.
+`tools/bin/socks5nc`, `devbench`, `psenc`, the `spriggit` / `champollion` / `dream_archivetool` wrappers and the other original kit files are licensed as in the table above. `whats-here` and `skyrim-winner` wrap the attributed toolkit copies under `third-party/`. The wrapped third-party binaries themselves are not included.
 
 Nexus Mods: also check each mod's own permissions tab before linking to or describing anything beyond a link.

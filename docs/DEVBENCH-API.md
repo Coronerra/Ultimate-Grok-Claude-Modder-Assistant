@@ -47,7 +47,11 @@ devbench console "getav health"
 devbench papyrus Actor GetActorValue --self 00000014 --args '["Health"]'
 devbench inspect refs --json '{"formType":"Actor","limit":50}'
 devbench raw POST /api/tool/gfx '{"...":"see devbench-gfx-menu-testing skill"}'
+whats-here look --json
+whats-here effects --json
 ```
+
+Newer DevBench builds (1.29–1.32, documented but not all live-tested here) add `forms` (`find` / `describe`), `actor` idle tools, `capture`, `inspect kind=draws`, difficulty and `alwaysActive` / `windowFocused` on `inspect kind=state` (a background window with `bAlwaysActive` off can stop advancing). `whats-here` uses `inspect` and `forms describe`. ToolkitProbe (optional, DevBench **1.35+**) registers `probe.look` / `probe.near` and related tools; see `docs/TOOLKIT-PROBE.md` and `docs/whats-here.md`.
 
 ## 2. Rules
 1. **Read before you change, read back after.** Inspect first; after any console/Papyrus change, inspect again and report the actual result.
@@ -56,3 +60,4 @@ devbench raw POST /api/tool/gfx '{"...":"see devbench-gfx-menu-testing skill"}'
 4. A DevBench result proves runtime behavior **in this session** only. Record it in CHANGES.md as "verified live via DevBench" with what was checked.
 5. Turn `tailscale serve` off when done. Never expose the port to the public internet (no Funnel).
 6. Menu internals (Scaleform) need DevBench GFx: load the `devbench-gfx-menu-testing` skill.
+7. `whats-here` is read-only. Prefer it for “what am I looking at / what’s around me / what keeps happening” instead of ad-hoc console commands.

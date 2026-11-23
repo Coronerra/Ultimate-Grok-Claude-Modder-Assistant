@@ -13,7 +13,7 @@ The shortest path from zero to a first **read-only** session. Full detail is in 
    sha256sum -c SHA256SUMS               # still passes: install never edits kit files
    ```
    For `logsum`, download rtk oss 1.2.0 yourself and add `RTK_SRC=/path/to/rtk` in front of the install command (it verifies the SHA-256).
-3. **Register the skills** in your Grok Bot from the folder you chose (or paste each `skills/<name>/SKILL.md`). Start with `getting-started-skyrim-modding` and `remote-skyrim-modding-session`. See `CAPABILITIES.md` for everything else.
+3. **Register the skills** in your Grok Bot from the folder you chose (or paste each `skills/<name>/SKILL.md`). Start with `getting-started-skyrim-modding` and `remote-skyrim-modding-session`. If DevBench is installed, also add `skyrim-whats-here`. See `CAPABILITIES.md` for everything else.
 4. **On your modding PC:** unzip the whole kit and double-click **`install.bat`** (try `install.bat -DryRun` first to see what it would do). Pick **1 = Skyrim SE/AE** or **2 = Skyrim VR**, approve the Windows admin prompt, then answer each question; Enter always means No. It offers Python, Git, Tailscale and OpenSSH Server, creates your folders, checks your game folder and script extender (SKSE64 or SKSEVR), adds the bot's **public** SSH key, and prints your Tailscale IP and detected game/MO2 paths. Full steps: [`INSTALL.md`](INSTALL.md). Sign in to Tailscale when asked. Never share a password or private key. (Manual alternative: `SETUP.md` Part B.)
 5. **Tell the bot:** "Run the getting-started Skyrim modding skill." It will ask your game edition, mod manager and profile, connect over Tailscale, and do one read-only scan.
 6. **Review the ranked fix list.** Approve, strike, or ask. Nothing is written until you say go.

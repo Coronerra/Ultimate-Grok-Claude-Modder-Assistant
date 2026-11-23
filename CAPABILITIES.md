@@ -8,6 +8,8 @@ Everything the kit gives an end user, one line each. `install.sh` sets up the to
 - `chunk <md> [outdir]`: splits a long doc into indexed passages so a bot reads only what it needs.
 - `digest-watch --once`: writes a digest only when watched files/URLs changed (template for routines).
 - `devbench`: client for the DevBench HTTP API (health, inspect, console with capture, Papyrus call, raw).
+- `whats-here`: read-only `look` / `near` / `ref` / `effects` / `watch` of the running game through DevBench (box-side: `DEVBENCH_URL`, optional `DEVBENCH_SOCKS`). Optional ToolkitProbe adds gaze, bounds and textures; the DLL is not bundled.
+- `skyrim-winner`: which plugin wins a record (needs Node + xEdit on the Windows install). Ships the toolkit 4.2.0 wrong-record bugfix.
 - `psenc`: encodes PowerShell for `-EncodedCommand` and optionally runs it on the PC over SSH.
 - `socks5nc`: SOCKS5 ProxyCommand so SSH works through userspace Tailscale.
 - `spriggit` (optional): wrapper for Mutagen Spriggit (plugin <-> YAML/JSON for text diffs).
@@ -32,13 +34,21 @@ Everything the kit gives an end user, one line each. `install.sh` sets up the to
 - `remote-skyrim-modding-session`: start of every later session; connect, pre-launch checks, toolkit check, DevBench.
 - `housecarl-data-layer-modding`: safe use of the houseCARL MCP server for records, conflicts and patches.
 - `devbench-gfx-menu-testing`: read/set/call inside Scaleform menus through DevBench GFx.
+- `skyrim-whats-here`: route “what am I looking at / what’s around me / what keeps happening” to `whats-here`.
+- `triage-and-conflicts`: who-wins (`skyrim-winner`) and log triage, without touching load order.
+- `skyrim-save`: read and investigate `.ess` / `.skse` saves; no save vault; ask before any write.
+- `skyrim-nif`: mesh inspection and careful edits, including VR-critical PreWEAPON / PreSHIELD nodes.
+- `skyrim-audio`: FUZ / XWM / WAV voice-line notes; ask before any write.
+- `skyrim-bsa`: BSA/BA2 listing and extract; loose files override archives.
 - `box-token-saving-tools`: always summarize/convert/chunk before reading; bounded web fetches.
 
 ## Docs (`docs/`)
 - `WORKFLOW.md`: roles, hard PC rules, staging, SHA-256 verify, backups/rollback, hands-off load order.
 - `INSTALLER-RUNBOOK.md`: step-by-step backup -> deploy -> re-hash -> confirm lists -> rollback.
 - `REMOTE-SESSION.md`: every-session Tailscale + SSH routine and common fixes.
-- `DEVBENCH-API.md`: DevBench endpoints (`/api/health`, `/api/tool/inspect|console|papyrus|gfx`) with placeholder host/port.
+- `DEVBENCH-API.md`: DevBench endpoints (`/api/health`, `/api/tool/inspect|console|papyrus|gfx`) with placeholder host/port, plus What's here and newer tools.
+- `whats-here.md`: box-side `whats-here` commands, gaps without ToolkitProbe, `--check` / `--textures` limits.
+- `TOOLKIT-PROBE.md`: optional SKSE probe (not bundled); owner installs via the mod manager; needs DevBench 1.35+.
 - `OPTIONAL-CLIS.md`: where to get Spriggit, Champollion, dream_archivetool, Caprica, papyrus-tools, with hashes.
 - `CK-VR-SETUP.md`: Creation Kit for Skyrim VR via MO2 (Root Builder, CKPE, Papyrus sources, ESL/header notes, pitfalls).
 
