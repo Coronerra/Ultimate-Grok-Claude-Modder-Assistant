@@ -9,6 +9,7 @@ Adds Claude Code as the team's engineer, alongside the Grok Bot as coordinator.
 - **Usage limits:** `tools/lib/claude_limits.py` detects Claude's session, weekly and model limits, records the reset time, and exits 3 so Grok knows to cover until the reset.
 - **Skills:** `delegate-to-claude-code` (delegation, markers, covering during limits, keeping `CLAUDE.md` current) and `modding-tech-support` (self-service crash and log diagnosis that builds on `triage-and-conflicts` and `skyrim-whats-here`).
 - **Bot access (PC setup):** running setup from an administrator account now warns that the bot would get full admin SSH access (valid for every admin account), and needs `ADMIN` typed to continue; Enter skips. `INSTALL.md` has step-by-step instructions for a separate **standard** Windows account for the bot, sharing only the MO2 instance (read), its `mods` folder (modify) and the game's My Games folder (read). README safety model updated.
+- **Downloads:** README, INSTALL.md and the getting-started skill point to this repo's releases (`Ultimate-Grok-Claude-Modder-Assistant-v1.2.zip`); Jezebel's Grok-only original is linked for anyone who only wants Grok.
 - **Templates and docs:** `templates/CLAUDE.md.template`, `templates/bot-roster/claude-code-engineer.md`, `docs/CLAUDE-CODE-ENGINEER.md` (install, `claude setup-token`, smoke test, what the safety rules cover). Cover art in `assets/cover.jpg`.
 
 ## v1.1 — 2026-11-23

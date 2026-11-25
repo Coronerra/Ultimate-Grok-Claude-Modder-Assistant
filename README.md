@@ -17,7 +17,7 @@ It's built for **every kind of modder**, from lore-friendly quest writers to the
 
 The bot works from its own Linux box, reaches **your own** Windows modding PC over Tailscale + SSH, diagnoses read-only first, and changes things only through a staged, SHA-256-verified, rollback-ready workflow that you approve.
 
-Built on the **Grok Modding Kit for Skyrim v1.1** by Jezebel Graves (MIT / CC BY 4.0), with the Grok + Claude Code team layer added by Coronerra.
+Built on the **Grok Modding Kit for Skyrim v1.1** by Jezebel Graves (MIT / CC BY 4.0), with the Grok + Claude Code team layer added by Coronerra. **Only want Grok?** Get Jezebel's original: [JezebelGraves/Grok-Modders-Kit-for-Skyrim](https://github.com/JezebelGraves/Grok-Modders-Kit-for-Skyrim).
 
 > **No game mods are redistributed here.** This repository contains original instructions, skills, templates and small wrapper scripts, plus a few **attributed MIT copies** from WingedGuardian's Skyrim AI Assistant Toolkit v4.2.0 (`whats-here` and `skyrim-winner`; see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)). It ships no plugins, meshes, textures, archives or third-party binaries (including no ToolkitProbe DLL). Get mods and tools from their official pages (for mods, the [Nexus Mods](https://www.nexusmods.com/) page of each mod) and respect each author's permissions.
 
@@ -25,7 +25,7 @@ Built on the **Grok Modding Kit for Skyrim v1.1** by Jezebel Graves (MIT / CC BY
 The kit has two halves: the **Windows modding PC** (where Skyrim runs) and the **bot's Linux box** (where the bot works). Full step-by-step instructions for both games are in **[INSTALL.md](INSTALL.md)**.
 
 **On the Windows PC (Skyrim SE/AE or Skyrim VR):**
-1. Download the latest release zip (or Code > Download ZIP) and unzip it anywhere.
+1. Download the latest release zip from [Releases](https://github.com/Coronerra/Ultimate-Grok-Claude-Modder-Assistant/releases) and unzip it anywhere.
 2. Double-click **`install.bat`**. Optional: run `install.bat -DryRun` first from a Command Prompt to preview.
 3. Pick **1 = Skyrim SE/AE** or **2 = Skyrim VR**, approve the Windows admin prompt, and answer each question. Enter always means No.
 4. Follow the "Next steps" it prints.
@@ -34,7 +34,7 @@ The kit has two halves: the **Windows modding PC** (where Skyrim runs) and the *
 
 **On the bot's box (Linux):**
 ```bash
-unzip Grok-Modders-Kit-for-Skyrim.zip -d Grok-Modders-Kit-for-Skyrim && cd Grok-Modders-Kit-for-Skyrim
+unzip Ultimate-Grok-Claude-Modder-Assistant-v1.2.zip && cd Ultimate-Grok-Claude-Modder-Assistant
 sha256sum -c SHA256SUMS
 bash tools/install.sh --skills-dir <YOUR_SKILLS_FOLDER>
 ```

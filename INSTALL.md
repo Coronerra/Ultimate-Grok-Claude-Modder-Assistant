@@ -48,8 +48,8 @@ Nothing in this kit is a mod, and nothing it installs goes into your game or mod
 The bot can't install software, change system settings or reach your other files from this account, and that's intended. When something needs admin rights, the bot asks you to do it. To remove the bot's access completely, delete the `grokbot` account.
 
 
-1. **Download** the latest release zip from https://github.com/JezebelGraves/Grok-Modders-Kit-for-Skyrim/releases (or Code > Download ZIP).
-2. **Unzip the whole kit** to any folder, for example `%USERPROFILE%\Downloads\Grok-Modders-Kit-for-Skyrim`. Keep the folder structure: `install.bat` needs the `pc-setup` folder next to it. If Windows marks the files as downloaded from the internet, right-click the zip > Properties > Unblock before unzipping.
+1. **Download** the latest release zip from https://github.com/Coronerra/Ultimate-Grok-Claude-Modder-Assistant/releases (`Ultimate-Grok-Claude-Modder-Assistant-v<version>.zip`).
+2. **Unzip the whole kit** to any folder, for example `%USERPROFILE%\Downloads\Ultimate-Grok-Claude-Modder-Assistant`. Keep the folder structure: `install.bat` needs the `pc-setup` folder next to it. If Windows marks the files as downloaded from the internet, right-click the zip > Properties > Unblock before unzipping.
 3. **Optional preview:** open a Command Prompt in that folder and run `install.bat -DryRun`. It walks through every question and changes nothing.
 4. **Double-click `install.bat`.** It:
    1. checks prerequisites (Windows, PowerShell, the kit files, winget), and warns if the game or MO2 is running;
@@ -78,8 +78,8 @@ Everything is logged to `pc-setup\setup-log.txt`. The log never contains key con
 ## Part 2: the bot's box
 
 ```bash
-unzip Grok-Modders-Kit-for-Skyrim.zip -d Grok-Modders-Kit-for-Skyrim
-cd Grok-Modders-Kit-for-Skyrim
+unzip Ultimate-Grok-Claude-Modder-Assistant-v1.2.zip
+cd Ultimate-Grok-Claude-Modder-Assistant
 sha256sum -c SHA256SUMS
 bash tools/install.sh --skills-dir <YOUR_SKILLS_FOLDER>
 source tools/env.sh

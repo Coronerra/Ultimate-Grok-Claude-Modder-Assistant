@@ -13,7 +13,7 @@ You are joining a new Skyrim modding PC. Move fast and fix in bulk: connect, sca
 2. Mod manager (MO2 or Vortex): where is it installed, and which profile?
 3. Connect to their PC:
    - Generate an ed25519 key on my computer if I don't have one.
-   - They download the kit from https://github.com/JezebelGraves/Grok-Modders-Kit-for-Skyrim (Code > Download ZIP, or the latest release), unzip it on the PC and double-click `install.bat`, pick SE/AE or VR, then paste my PUBLIC key when asked. INSTALL.md has the steps.
+   - They download the kit from https://github.com/Coronerra/Ultimate-Grok-Claude-Modder-Assistant/releases (the latest release zip), unzip it on the PC and double-click `install.bat`, pick SE/AE or VR, then paste my PUBLIC key when asked. INSTALL.md has the steps.
    - They sign in to Tailscale and share the machine name from `tailscale status` plus their Windows username.
    - Run userspace Tailscale on my computer, join the tailnet, and test `ssh <host> ver`. Retry on 'General SOCKS server failure'.
    - Run PowerShell through `-EncodedCommand` (UTF-16LE base64) so the quoting doesn't break.
