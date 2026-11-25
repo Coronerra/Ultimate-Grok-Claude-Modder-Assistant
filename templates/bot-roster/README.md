@@ -8,4 +8,5 @@ Generic role cards for a small team of Grok Bots working on one modding PC. Copy
 | `chief-of-staff.md` | Coordinator | none / read-only |
 | `researcher-bot.md` | Researcher(s) | read-only |
 | `specialist-bot.md` | Specialist(s), incl. the single plugin editor | read-only; stages on the box |
+| `claude-code-engineer.md` | Engineer: Claude Code, called by the coordinator with `delegate-claude` | none; stages on the box |
 | `ROSTER.example.md` | The team's live roster | n/a |

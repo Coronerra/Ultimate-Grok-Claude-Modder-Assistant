@@ -9,3 +9,4 @@ Standing rules: one Installer writes to the PC; nothing deploys without the owne
 | <Name> | Researcher | <topic> | read-only (via Installer pulls) | |
 | <Name> | Specialist: plugin editor | ESP/ESM/ESL changes | none (stages on box) | only plugin editor |
 | <Name> | Specialist: <area> | <scripts / UI / INIs> | none (stages on box) | |
+| Claude Code | Engineer (Specialist) | code, tech support, docs, reviews, via `delegate-claude` | none (stages on box) | never deploys; never writes explicit text; reviews run fresh and read-only |

@@ -99,7 +99,7 @@ echo "== 4/4 smoke test"
 # shellcheck disable=SC1091
 . "$HERE/env.sh"
 ok=1
-for t in tomd chunk digest-watch devbench whats-here psenc; do
+for t in tomd chunk digest-watch devbench whats-here psenc delegate-claude; do
   "$HERE/bin/$t" --help >/dev/null 2>&1 && echo "   $t ok" || { echo "   $t FAILED"; ok=0; }
 done
 "$VENV/bin/python" -c "import boxkit" && echo "   boxkit ok" || { echo "   boxkit FAILED"; ok=0; }
@@ -109,4 +109,5 @@ else
   echo "   logsum: needs rtk oss 1.2.0 (RTK_SRC=/path/to/rtk bash tools/install.sh)"
 fi
 echo "   optional CLIs (spriggit, champollion, dream_archivetool): see docs/OPTIONAL-CLIS.md"
+command -v "${CLAUDE_BIN:-claude}" >/dev/null 2>&1 && echo "   claude found: $("${CLAUDE_BIN:-claude}" --version 2>/dev/null)" || echo "   Claude Code (the engineer, recommended): not installed; see docs/CLAUDE-CODE-ENGINEER.md"
 [[ $ok -eq 1 ]] && echo "Installed. Open a new shell or: source \"$HERE/env.sh\"" || { echo "Install finished with failures." >&2; exit 1; }

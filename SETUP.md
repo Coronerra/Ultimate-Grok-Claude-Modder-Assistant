@@ -134,6 +134,10 @@ Not tested on a real Windows PC yet; read the script before running it. Manual s
 5. `devbench-gfx-menu-testing` (only if you install DevBench + DevBench GFx)
 6. `skyrim-whats-here` (only if you install DevBench; optional ToolkitProbe adds gaze and bounds)
 7. `triage-and-conflicts`, `skyrim-save`, `skyrim-nif`, `skyrim-audio`, `skyrim-bsa` as needed
+8. `delegate-to-claude-code` (with Claude Code as the engineer: `docs/CLAUDE-CODE-ENGINEER.md`)
+9. `modding-tech-support` (crash and log diagnosis for your own game; works best with Claude Code)
+
+Before anything else, have the bot read and save `TEAM-RULES.md` as standing instructions (add your own limits at the bottom first, if you have any), then `WHY-GROK-PLUS-CLAUDE.md`.
 
 Then tell the bot what to remember: your PC alias, game edition(s), MO2 instance path, profile name, `<STAGING_DIR>`, `<BACKUP_DIR>`, and which bot is the Installer (see `templates/bot-roster/`).
 

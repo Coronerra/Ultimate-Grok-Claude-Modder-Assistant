@@ -14,6 +14,7 @@ read-only scan -> ranked fix list -> owner's "go" -> stage on box -> SHA-256 -> 
 | **Installer bot** | **Yes, the only one** | Backups, deploys, restores, MO2 mod-folder creation. Runs the rollback script. |
 | **Chief of Staff** | No | Routes work, keeps the briefing and roster current, never relays a "go" on the owner's behalf. |
 | **Researcher bots** | No (read-only) | Sources, compatibility, versions; label every claim `[cited]`, `[box]` or `[UNCERTAIN]`. |
+| **Engineer (Claude Code)** | No (stage only) | Never writes explicit text (see `TEAM-RULES.md`). Writes and compiles code fixes as packages when the coordinator runs `delegate-claude`; diagnoses logs for tech support; a separate fresh `review` checks every package. See `docs/CLAUDE-CODE-ENGINEER.md`. |
 | **Specialist bots** | No (stage only) | Build a fix on the box (scripts, patches, INIs), write CHANGES.md, SHA256SUMS and rollback.ps1. One named specialist may be the only **plugin (ESP) editor**. |
 
 Rules that hold for every role:

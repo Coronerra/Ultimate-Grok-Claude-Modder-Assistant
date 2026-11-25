@@ -1,0 +1,313 @@
+#!/usr/bin/env bash
+# delegate-claude: hand one package job to Claude Code (the team's engineer) on the box.
+#
+#   delegate-claude new    <package-dir> (--task "..." | --task-file FILE) [options]
+#   delegate-claude follow <package-dir> (--task "..." | --task-file FILE) [options]
+#   delegate-claude review <package-dir> [--task "extra focus"] [options]
+#   delegate-claude status <package-dir>
+#   delegate-claude limits [--json] [--probe] [--clear]
+#
+#   new     start a fresh engineer session in the package folder (creates stage/ diffs/ if missing)
+#   follow  continue the package's saved session (same engineer, remembers the job)
+#   review  a FRESH, read-only session (plan mode) that checks the package against
+#           docs/WORKFLOW.md and prints PASS / FIX list. Never edits anything.
+#   status  show the last run's summary (result, cost, denials) without calling Claude
+#   limits  is the engineer available, or blocked by a Claude usage limit (and until when)?
+#           --probe sends one tiny request to find out for sure; --clear forgets a recorded limit
+#
+# Options:
+#   --ref DIR          read-only reference folder (sources, Papyrus imports, a repo). Repeatable.
+#                      Added with --add-dir plus an Edit deny rule, so Claude can read, never write.
+#   --allow-bash RULE  extra Bash allow rule, e.g. 'python3 tools/build_esp.py *'. Repeatable.
+#   --web              allow WebSearch/WebFetch (off by default)
+#   --budget USD       spend cap for this run (default $DELEGATE_BUDGET or 5)
+#   --max-turns N      turn cap (default $DELEGATE_MAX_TURNS or 80)
+#   --model NAME       model alias or full name (default: Claude Code's default)
+#   --dry-run          print the claude command and exit
+#   --force            run even though a usage limit is recorded as not reset yet
+#
+# Safety (see docs/CLAUDE-CODE-ENGINEER.md):
+#   - Claude works ONLY inside <package-dir>. Edits elsewhere are denied, no one is asked.
+#   - Bash is allow-listed: Claude Code's read-only commands, mkdir/cp/mv/touch inside the
+#     package (acceptEdits), sha256sum, diff, the kit's exact hashing pipeline, $CAPRICA_CMD,
+#     plus your --allow-bash rules. Everything else is denied without asking anyone.
+#   - ssh/scp/rsync/sftp/psenc/tailscale/curl/wget are also explicitly denied.
+#   - <package-dir>/live/ (read-only copies the Installer pulled from the PC) is never editable.
+#   - Nothing here can reach the modding PC. Deploys stay with the Installer bot.
+# Output: the result text on stdout; full JSON in <package-dir>/.claude-runs/<time>-<mode>.json;
+# the session ID in <package-dir>/.claude-session.
+# Exit 0 ok, 1 Claude reported an error, 2 usage, 3 engineer blocked by a usage limit (Grok covers).
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+KIT_HOME="${KIT_HOME:-$(cd "$HERE/../.." && pwd)}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+read -r -a CLAUDE_CMD <<< "$CLAUDE_BIN"   # may be e.g. "sudo -u engineer -H claude"
+CAPRICA_CMD="${CAPRICA_CMD:-caprica}"
+PY="$(command -v python3 || true)"
+
+usage() { sed -n '2,38p' "$0"; exit "${1:-0}"; }
+LIMITS_PY="$KIT_HOME/tools/lib/claude_limits.py"
+limits_py() { "$PY" -I "$LIMITS_PY" "$@"; }
+die() { echo "delegate-claude: $*" >&2; exit 2; }
+
+[[ $# -ge 1 ]] || usage 2
+MODE="$1"; shift
+case "$MODE" in
+  -h|--help|help) usage 0 ;;
+  new|follow|review|status|limits) ;;
+  *) die "unknown mode '$MODE' (new | follow | review | status | limits)" ;;
+esac
+
+if [[ "$MODE" == "limits" ]]; then
+  [[ -n "$PY" ]] || die "python3 not found"
+  want_json=""; probe=0
+  for a in "$@"; do
+    case "$a" in
+      --json) want_json="--json" ;;
+      --probe) probe=1 ;;
+      --clear) limits_py clear; exit 0 ;;
+      *) die "limits: unknown option $a" ;;
+    esac
+  done
+  if [[ $probe -eq 1 ]]; then
+    command -v "${CLAUDE_CMD[0]}" >/dev/null 2>&1 || die "Claude Code not found ('$CLAUDE_BIN')"
+    pdir="$(mktemp -d)"; pout="$pdir/probe.json"
+    (cd "$pdir" && "${CLAUDE_CMD[@]}" -p "Reply with the single word OK." --output-format json \
+      --max-turns 1 --model haiku </dev/null >"$pout" 2>"$pout.stderr") || true
+    limits_py check-run "$pout" "$pout.stderr" probe "-" >/dev/null || true
+    rm -rf "$pdir"
+  fi
+  limits_py status $want_json
+  exit $?
+fi
+[[ $# -ge 1 ]] || die "missing <package-dir>"
+PKG_IN="$1"; shift
+
+TASK=""; TASK_FILE=""; MODEL=""; WEB=0; DRY=0; FORCE=0
+BUDGET="${DELEGATE_BUDGET:-5}"; MAX_TURNS="${DELEGATE_MAX_TURNS:-80}"
+REFS=(); EXTRA_BASH=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --task) TASK="${2-}"; shift 2 ;;
+    --task-file) TASK_FILE="${2-}"; shift 2 ;;
+    --ref) REFS+=("${2-}"); shift 2 ;;
+    --allow-bash) EXTRA_BASH+=("${2-}"); shift 2 ;;
+    --web) WEB=1; shift ;;
+    --budget) BUDGET="${2-}"; shift 2 ;;
+    --max-turns) MAX_TURNS="${2-}"; shift 2 ;;
+    --model) MODEL="${2-}"; shift 2 ;;
+    --dry-run) DRY=1; shift ;;
+    --force) FORCE=1; shift ;;
+    -h|--help) usage 0 ;;
+    *) die "unknown option $1" ;;
+  esac
+done
+
+[[ -n "$PY" ]] || die "python3 not found (needed to read Claude's JSON output)"
+
+# --- package folder -------------------------------------------------------
+if [[ "$MODE" == "new" ]]; then
+  mkdir -p "$PKG_IN/stage" "$PKG_IN/diffs"
+fi
+[[ -d "$PKG_IN" ]] || die "package folder not found: $PKG_IN (use 'new' to create it)"
+PKG="$(cd "$PKG_IN" && pwd)"
+RUNS="$PKG/.claude-runs"
+SESSION_FILE="$PKG/.claude-session"
+
+# --- status needs no Claude call ------------------------------------------
+summarize() {  # $1 = run json file
+  "$PY" - "$1" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+try:
+    d = json.load(open(p, encoding="utf-8"))
+except Exception as e:
+    print(f"[delegate-claude] could not parse {p}: {e}", file=sys.stderr); sys.exit(1)
+res = d.get("result") or ""
+print(res.rstrip())
+print()
+print("---- delegate-claude summary ----")
+print(f"session:  {d.get('session_id', '?')}")
+cost = d.get("total_cost_usd")
+print(f"cost:     ${cost:.4f} (client-side estimate, whole session)" if isinstance(cost, (int, float)) else "cost:     ?")
+print(f"turns:    {d.get('num_turns', '?')}")
+den = d.get("permission_denials") or []
+if den:
+    print(f"denied:   {len(den)} tool call(s) blocked by the safety rules:")
+    for x in den[:10]:
+        name = x.get("tool_name", "?")
+        inp = x.get("tool_input", {})
+        what = inp.get("command") or inp.get("file_path") or inp.get("url") or ""
+        print(f"          - {name}: {str(what)[:160]}")
+sub = d.get("subtype")
+err = bool(d.get("is_error")) or sub not in (None, "success")
+why = d.get("terminal_reason") if sub in (None, "success") else sub
+hint = {"error_max_budget_usd": " (hit --budget: 'follow' continues the job)",
+        "error_max_turns": " (hit --max-turns: 'follow' continues the job)"}.get(sub, "")
+print(f"status:   {'ERROR: ' + str(why or 'see json') + hint if err else 'ok'}")
+print(f"json:     {p}")
+sys.exit(1 if err else 0)
+PYEOF
+}
+
+show_markers() {
+  local m
+  m="$(grep -rnoI '\[\[GROK-WRITE:[^]]*\]\]' "$PKG/stage" 2>/dev/null | sed "s|^$PKG/||" || true)"
+  [[ -n "$m" ]] || return 0
+  echo "grok-write: $(printf '%s\n' "$m" | wc -l) marker(s) for Grok to fill (release is blocked until they're gone):"
+  printf '%s\n' "$m" | head -40 | sed 's/^/          /'
+}
+
+if [[ "$MODE" == "status" ]]; then
+  last="$(ls -1t "$RUNS"/*.json 2>/dev/null | head -1 || true)"
+  [[ -n "$last" ]] || die "no runs yet in $RUNS"
+  rc=0; summarize "$last" || rc=$?
+  show_markers
+  exit "$rc"
+fi
+
+# --- prompt ---------------------------------------------------------------
+if [[ -n "$TASK_FILE" ]]; then
+  [[ -f "$TASK_FILE" ]] || die "task file not found: $TASK_FILE"
+  TASK="$(cat "$TASK_FILE")"
+fi
+if [[ "$MODE" != "review" && -z "$TASK" ]]; then
+  die "$MODE needs --task or --task-file"
+fi
+
+if [[ "$MODE" == "review" ]]; then
+  PROMPT="You are the independent reviewer for this staged package. You did not build it.
+Read CHANGES.md, SHA256SUMS, rollback.ps1, stage/ and diffs/ in this folder, and the workflow rules in your instructions.
+Check, and say for each: (1) every file under stage/ is listed in SHA256SUMS and the hashes match (run sha256sum -c from the right folder);
+(2) CHANGES.md is complete: pre hashes of live files, new hashes, install steps, rollback steps, an honest 'not tested in game' list;
+(3) rollback.ps1 names exactly the files in stage/ and never touches plugins.txt, loadorder.txt, modlist.txt or Data\\;
+(4) the code change does what CHANGES.md claims, with no unrelated edits; for Papyrus, look for None checks, unbounded loops, latent waits in event handlers, and save-baked state;
+(5) anything that would break existing saves (FormID changes, removed properties or scripts);
+(6) team rules ($KIT_HOME/TEAM-RULES.md): every code path that picks an actor for a sexual scene excludes children (a.IsChild() plus the framework check, e.g. OUtils.IsChild(a)), and no child check was removed or weakened; nothing touches the owner's added limits; any sexual content involving minors is an automatic FIX, and say so at the top;
+(7) no [[GROK-WRITE: ...]] markers are left in stage/ (list any you find; they block release), and explicit text written by Grok was not reworded.
+End with exactly one line: VERDICT: PASS, or VERDICT: FIX followed by a numbered list of fixes. Do not edit anything."
+  [[ -n "$TASK" ]] && PROMPT="$PROMPT
+
+Extra focus from the coordinator: $TASK"
+else
+  PROMPT="$TASK"
+fi
+
+# --- tools and permissions ------------------------------------------------
+# No bare Read/Edit/Write allow: reads inside the working folders need no approval, and
+# acceptEdits approves edits (and mkdir/cp/mv/touch) inside them. Anything outside is denied.
+# Hashing uses the kit's own pipeline, allowed as exact commands (no open-ended find/xargs/sort,
+# which could run or write anything):
+#   cd stage && find . -type f -print0 | sort -z | xargs -0 sha256sum > ../SHA256SUMS
+ALLOW=(
+  "Glob" "Grep"
+  "Bash(sha256sum *)" "Bash(diff *)"
+  "Bash(find . -type f -print0)" "Bash(sort -z)" "Bash(xargs -0 sha256sum)"
+  "Bash($CAPRICA_CMD *)"
+  "Read(//$KIT_HOME/TEAM-RULES.md)"
+)
+for b in "${EXTRA_BASH[@]}"; do ALLOW+=("Bash($b)"); done
+DENY=(
+  "Bash(ssh *)" "Bash(scp *)" "Bash(sftp *)" "Bash(rsync *)" "Bash(psenc *)"
+  "Bash(tailscale *)" "Bash(curl *)" "Bash(wget *)" "Bash(git push *)"
+  "Read(//$HOME/.ssh/**)" "Read(//$HOME/.claude/.credentials.json)"
+  "Edit(//$PKG/live/**)" "Edit(//$KIT_HOME/templates/**)" "Edit(//$KIT_HOME/docs/**)"
+  "Edit(//$KIT_HOME/TEAM-RULES.md)"
+)
+ADD_DIRS=("$KIT_HOME/templates" "$KIT_HOME/docs")
+for r in "${REFS[@]}"; do
+  [[ -d "$r" ]] || die "--ref folder not found: $r"
+  ra="$(cd "$r" && pwd)"
+  ADD_DIRS+=("$ra"); DENY+=("Edit(//$ra/**)")
+done
+if [[ $WEB -eq 1 ]]; then
+  ALLOW+=("WebSearch" "WebFetch")
+else
+  DENY+=("WebSearch" "WebFetch")
+fi
+# Absolute-path rules use a leading //; collapse the extra slash from absolute $KIT_HOME/$PKG.
+fix() { local s="$1"; echo "${s//\/\/\//\/\/}"; }
+for i in "${!ALLOW[@]}"; do ALLOW[$i]="$(fix "${ALLOW[$i]}")"; done
+for i in "${!DENY[@]}"; do DENY[$i]="$(fix "${DENY[$i]}")"; done
+
+PERM_MODE="acceptEdits"
+[[ "$MODE" == "review" ]] && PERM_MODE="plan"
+
+CMD=("${CLAUDE_CMD[@]}" -p "$PROMPT"
+  --output-format json
+  --permission-mode "$PERM_MODE"
+  --max-turns "$MAX_TURNS"
+  --max-budget-usd "$BUDGET")
+for d in "${ADD_DIRS[@]}"; do CMD+=(--add-dir "$d"); done
+CMD+=(--allowedTools "$(IFS=,; echo "${ALLOW[*]}")")
+CMD+=(--disallowedTools "$(IFS=,; echo "${DENY[*]}")")
+[[ -n "$MODEL" ]] && CMD+=(--model "$MODEL")
+
+# CLAUDE.md: use one in the package folder or any parent (Claude Code loads those itself);
+# otherwise fall back to the kit template so the rules always apply.
+SYS_FILES=()
+has_md=0; d="$PKG"
+while [[ "$d" != "/" ]]; do
+  [[ -f "$d/CLAUDE.md" ]] && { has_md=1; break; }
+  d="$(dirname "$d")"
+done
+# Team rules (who writes what, GROK-WRITE markers, the hard line) ride along on every run.
+[[ -f "$KIT_HOME/TEAM-RULES.md" ]] && TEAM_RULES_FILE="$KIT_HOME/TEAM-RULES.md" || TEAM_RULES_FILE=""
+if [[ $has_md -eq 0 ]]; then
+  SYS_FILES=("$KIT_HOME/templates/CLAUDE.md.template")
+  echo "delegate-claude: no CLAUDE.md in $PKG or its parents; using templates/CLAUDE.md.template (fill one in, see docs/CLAUDE-CODE-ENGINEER.md)" >&2
+fi
+
+[[ -n "$TEAM_RULES_FILE" ]] && SYS_FILES+=("$TEAM_RULES_FILE")
+if [[ ${#SYS_FILES[@]} -gt 0 ]]; then
+  # One --append-system-prompt-file: combine into a single file in the package's run folder.
+  mkdir -p "$RUNS"
+  SYS_COMBINED="$RUNS/system-append.md"
+  : >"$SYS_COMBINED"
+  for f in "${SYS_FILES[@]}"; do cat "$f" >>"$SYS_COMBINED"; printf '\n\n' >>"$SYS_COMBINED"; done
+  CMD+=(--append-system-prompt-file "$SYS_COMBINED")
+fi
+
+if [[ "$MODE" == "follow" ]]; then
+  [[ -s "$SESSION_FILE" ]] || die "no saved session in $SESSION_FILE (start with 'new')"
+  CMD+=(--resume "$(cat "$SESSION_FILE")")
+fi
+
+if [[ $DRY -eq 1 ]]; then
+  echo "cd $(printf '%q' "$PKG")"
+  printf '%q ' "${CMD[@]}"; echo
+  exit 0
+fi
+
+if [[ $FORCE -eq 0 ]]; then
+  limits_py gate "$MODEL" || exit 3
+fi
+command -v "${CLAUDE_CMD[0]}" >/dev/null 2>&1 || die "Claude Code not found ('$CLAUDE_BIN'); see docs/CLAUDE-CODE-ENGINEER.md"
+# Unattended: deny anything that would need a person, instead of hanging (v2.1.259+).
+if "${CLAUDE_CMD[@]}" --help 2>/dev/null | grep -q -- '--permission-prompts'; then
+  CMD+=(--permission-prompts none)
+fi
+
+mkdir -p "$RUNS"
+OUT="$RUNS/$(date +%Y%m%d-%H%M%S)-$MODE.json"
+set +e
+(cd "$PKG" && "${CMD[@]}" </dev/null >"$OUT" 2>"$OUT.stderr")
+rc=$?
+set -e
+[[ -s "$OUT.stderr" ]] || rm -f "$OUT.stderr"
+ERRF="-"; [[ -f "$OUT.stderr" ]] && ERRF="$OUT.stderr"
+if [[ ! -s "$OUT" ]]; then
+  echo "delegate-claude: Claude Code produced no output (exit $rc)." >&2
+  [[ -f "$OUT.stderr" ]] && sed -n '1,20p' "$OUT.stderr" >&2
+  limits_py check-run "$OUT" "$ERRF" "$MODE" "$PKG" || exit 3
+  exit 1
+fi
+# Remember the engineer's session (not the reviewer's: reviews stay independent).
+if [[ "$MODE" != "review" ]]; then
+  sid="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("session_id",""))' "$OUT" 2>/dev/null || true)"
+  [[ -n "$sid" ]] && printf '%s\n' "$sid" >"$SESSION_FILE"
+fi
+rc=0; summarize "$OUT" || rc=$?
+show_markers
+limits_py check-run "$OUT" "$ERRF" "$MODE" "$PKG" || rc=3
+exit "$rc"

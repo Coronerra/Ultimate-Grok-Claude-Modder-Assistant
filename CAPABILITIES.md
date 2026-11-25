@@ -12,12 +12,15 @@ Everything the kit gives an end user, one line each. `install.sh` sets up the to
 - `skyrim-winner`: which plugin wins a record (needs Node + xEdit on the Windows install). Ships the toolkit 4.2.0 wrong-record bugfix.
 - `psenc`: encodes PowerShell for `-EncodedCommand` and optionally runs it on the PC over SSH.
 - `socks5nc`: SOCKS5 ProxyCommand so SSH works through userspace Tailscale.
+- `delegate-claude new|follow|review|status <package>`: hands a package job to Claude Code (the engineer) on the box, limited to the package folder, with no PC access, an allow-listed Bash, spend and turn caps, `GROK-WRITE` marker reporting, and a fresh read-only `review` that ends in `VERDICT: PASS/FIX`.
+- `delegate-claude limits [--json|--probe|--clear]`: is the engineer available or blocked by a Claude usage limit, and until when; runs exit 3 while blocked so Grok knows to cover.
 - `spriggit` (optional): wrapper for Mutagen Spriggit (plugin <-> YAML/JSON for text diffs).
 - `champollion` (optional): wrapper for the Champollion Papyrus decompiler under Wine.
 - `dream_archivetool` (optional): wrapper for the BSA/BA2 inspect/extract CLI.
 - `tools/extras/inspect_plugin.py` (optional): read-only plugin record listing via bethkit.
 
 ## Python library (`tools/lib`)
+- `claude_limits.py`: usage-limit detection and state for `delegate-claude` (`~/.claude-engineer/`).
 - `boxkit`: `guarded_get()` / `cached_session()` / `breaker()`: 6 h SQLite HTTP cache, circuit breaker, hard timeout.
 
 ## Setup scripts
@@ -41,8 +44,15 @@ Everything the kit gives an end user, one line each. `install.sh` sets up the to
 - `skyrim-audio`: FUZ / XWM / WAV voice-line notes; ask before any write.
 - `skyrim-bsa`: BSA/BA2 listing and extract; loose files override archives.
 - `box-token-saving-tools`: always summarize/convert/chunk before reading; bounded web fetches.
+- `delegate-to-claude-code`: when and how the coordinator hands work to Claude Code (everything but explicit writing, talk and deploys), fills GROK-WRITE markers, covers during usage limits, and updates `CLAUDE.md` after every job.
+- `modding-tech-support`: be your own tech support. Grok collects crash, Papyrus and mod logs read-only; Claude Code diagnoses (REPORT.md with cause, fix, how to verify, and a ready-to-post bug report); Grok explains it in plain words.
+
+## Team (top folder)
+- `TEAM-RULES.md`: who's who, who writes what, GROK-WRITE markers, the no-minors hard line (fixed), and your own limits. Outranks every other file.
+- `WHY-GROK-PLUS-CLAUDE.md`: why the team is Grok + Claude Code, what each one is for, and the flow.
 
 ## Docs (`docs/`)
+- `CLAUDE-CODE-ENGINEER.md`: install Claude Code on the box, sign in without a browser (`claude setup-token`), configure, usage limits, smoke test, and what the safety rules do and don't cover.
 - `WORKFLOW.md`: roles, hard PC rules, staging, SHA-256 verify, backups/rollback, hands-off load order.
 - `INSTALLER-RUNBOOK.md`: step-by-step backup -> deploy -> re-hash -> confirm lists -> rollback.
 - `REMOTE-SESSION.md`: every-session Tailscale + SSH routine and common fixes.
@@ -58,4 +68,5 @@ Everything the kit gives an end user, one line each. `install.sh` sets up the to
 - `rollback.template.ps1`: Backup / Deploy / Restore with pre/new hash checks and process guard.
 - `LOCATIONS.example.md`: shared location map pattern (FormID:plugin lookups, "already in X" tests, traps).
 - `papyrus.toml`: starter config for papyrus-tools (`skse = true`).
-- `bot-roster/`: roster example plus role cards for Installer, Researcher, Specialist and Chief of Staff bots.
+- `CLAUDE.md.template`: the engineer's standing rules (package layout, hard rules, Papyrus checklist, project facts), copied to `<PACKAGES_DIR>/CLAUDE.md`.
+- `bot-roster/`: roster example plus role cards for Installer, Researcher, Specialist, Chief of Staff and the Claude Code engineer bots.

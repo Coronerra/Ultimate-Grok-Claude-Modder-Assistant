@@ -5,3 +5,8 @@ tools/vendor/
 tools/bin/rtk
 __pycache__/
 *.pyc
+.venv/
+venv/
+.claude-runs/
+.claude-session
+*.summary.txt
