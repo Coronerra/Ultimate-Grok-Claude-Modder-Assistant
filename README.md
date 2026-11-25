@@ -85,6 +85,8 @@ More detail, including GOG and uninstall, is in [INSTALL.md](INSTALL.md).
 3. Nothing deploys without the owner's own "go".
 4. Stage on the box, SHA-256 every file, back up live files, ship a rollback script ([`docs/INSTALLER-RUNBOOK.md`](docs/INSTALLER-RUNBOOK.md)).
 5. Never hand-edit `plugins.txt`, `loadorder.txt` or `modlist.txt`; never write into `Data/` directly; never write while the game or MO2 is open.
+6. **Know what access the bot has.** It signs in over SSH as the Windows account you run setup from. From an administrator account that means full admin access, so setup warns you and needs `ADMIN` typed. Recommended: a separate standard Windows account for the bot ([`INSTALL.md`](INSTALL.md#give-the-bot-its-own-standard-account-recommended)).
+7. Nothing is downloaded from the internet and run by setup. The only installs are Python, Git and Tailscale through winget, each asked first.
 
 Full rules: [`docs/WORKFLOW.md`](docs/WORKFLOW.md).
 

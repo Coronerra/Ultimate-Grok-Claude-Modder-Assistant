@@ -28,6 +28,26 @@ Nothing in this kit is a mod, and nothing it installs goes into your game or mod
 
 ## Part 1: the Windows PC
 
+> **What access the bot gets:** the bot signs in to your PC over SSH as the Windows account you run setup from. If that's an **administrator** account, the bot gets **full administrator access** to the PC, and its key works for every administrator account. Setup warns you and needs you to type `ADMIN` before it does that. **Recommended:** give the bot its own **standard** Windows account (below). The bot then only reaches the folders you share with it.
+
+### Give the bot its own standard account (recommended)
+1. **Create the account:** Settings > Accounts > Other users > Add account > "I don't have this person's sign-in information" > "Add a user without a Microsoft account". Name it e.g. `grokbot`, give it a long random password (keep it in your password manager; the bot never uses it), and leave it as a **Standard User**.
+2. **Sign in to `grokbot` once**, so Windows creates its profile, then stay signed in for the next step.
+3. **Run `install.bat` from the `grokbot` account** (steps below). When Windows asks for administrator permission, enter **your own** admin account's name and password. Setup then puts the bot's key only in `grokbot`'s own `.ssh\authorized_keys`, and creates the staging and backup folders in `grokbot`'s profile.
+4. **Share only what the bot needs.** In an administrator Command Prompt on your own account, replace the paths with yours. Setup's summary shows your MO2 instance path.
+   ```bat
+   rem read your MO2 instance (profiles, logs); change only its mods folder (packages are deployed there)
+   icacls "<MO2_INSTANCE>" /grant "grokbot:(OI)(CI)RX"
+   icacls "<MO2_INSTANCE>\mods" /grant "grokbot:(OI)(CI)M"
+   rem read your game INIs and Papyrus/SKSE logs
+   icacls "%USERPROFILE%\Documents\My Games\Skyrim Special Edition" /grant "grokbot:(OI)(CI)RX"
+   ```
+   For Skyrim VR, use `Documents\My Games\Skyrim VR`. Steam's game folder is normally readable by every user already.
+5. **Tell the bot** to connect as `grokbot` (`ssh grokbot@<tailscale-ip>`).
+
+The bot can't install software, change system settings or reach your other files from this account, and that's intended. When something needs admin rights, the bot asks you to do it. To remove the bot's access completely, delete the `grokbot` account.
+
+
 1. **Download** the latest release zip from https://github.com/JezebelGraves/Grok-Modders-Kit-for-Skyrim/releases (or Code > Download ZIP).
 2. **Unzip the whole kit** to any folder, for example `%USERPROFILE%\Downloads\Grok-Modders-Kit-for-Skyrim`. Keep the folder structure: `install.bat` needs the `pc-setup` folder next to it. If Windows marks the files as downloaded from the internet, right-click the zip > Properties > Unblock before unzipping.
 3. **Optional preview:** open a Command Prompt in that folder and run `install.bat -DryRun`. It walks through every question and changes nothing.
@@ -40,7 +60,7 @@ Nothing in this kit is a mod, and nothing it installs goes into your game or mod
    2. OpenSSH Server: the Windows feature, the `sshd` service and a firewall rule for port 22, optionally limited to Tailscale addresses.
    3. Folders: a root folder (default `%USERPROFILE%\GrokModding`) with `Toolkit`, `Staging` and `Backups`.
    4. Game check for the edition you picked: finds the game folder, reads the exe version, checks for `skse64_loader.exe` or `sksevr_loader.exe`, and offers to save these facts to `game-profile.txt` in the root folder.
-   5. The bot's **public** SSH key: paste the one line, or the path to its `.pub` file. Private keys are refused.
+   5. The bot's **public** SSH key: paste the one line, or the path to its `.pub` file. Private keys are refused. From an administrator account, setup warns that this gives the bot full admin SSH access and needs `ADMIN` typed to continue (see above).
    6. A read-only summary: Tailscale IP, sshd status, your Windows user name and the game and MO2 paths it found.
 6. **Sign in to Tailscale** on the PC if it asks, using the same account as the bot's box.
 7. **Follow the "Next steps"** that `install.bat` prints, then press a key to close it.
@@ -93,7 +113,7 @@ If you play both, run `install.bat` once for each game. Only the game step diffe
 
 The kit installs nothing into Skyrim, MO2 or your mods. To remove what the PC setup added, undo only the steps you said yes to:
 
-1. **Bot access (do this first):** delete the bot's key line from `C:\ProgramData\ssh\administrators_authorized_keys` (admin account) or `%USERPROFILE%\.ssh\authorized_keys` (standard account), or copy the `.bak-<timestamp>` file back.
+1. **Bot access (do this first):** if you made a separate bot account, delete it (Settings > Accounts > Other users). Otherwise, delete the bot's key line from `C:\ProgramData\ssh\administrators_authorized_keys` (admin account) or `%USERPROFILE%\.ssh\authorized_keys` (standard account), or copy the `.bak-<timestamp>` file back.
 2. **OpenSSH Server**, in an administrator PowerShell:
    ```powershell
    Stop-Service sshd; Set-Service sshd -StartupType Disabled

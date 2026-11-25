@@ -9,7 +9,9 @@
       3. A toolkit folder, a staging folder and a backups folder under a root you choose
       4. Game edition (Skyrim SE/AE or Skyrim VR): finds the game folder, checks the matching
          script extender loader, and offers to save the facts to game-profile.txt (backed up first)
-      5. The bot's PUBLIC SSH key in the right authorized_keys file, with locked-down ACLs
+      5. The bot's PUBLIC SSH key in the right authorized_keys file, with locked-down ACLs.
+         From an administrator account this would give the bot full admin SSH access, so it
+         warns and needs ADMIN typed to continue; a separate standard account is recommended.
       6. A read-only summary: Tailscale IP, sshd status, ssh test command, detected MO2 / Skyrim paths
 
     Every install or change asks first and defaults to No. Safe to re-run: anything already
@@ -418,6 +420,23 @@ function Step-PublicKey {
         $grants = @("${target}:F", '*S-1-5-18:F')               # that user, SYSTEM
     }
     Write-SetupLog ("Account '{0}' is {1}; key file: {2}" -f $target, $(if ($targetIsAdmin) { 'an administrator' } else { 'a standard user' }), $file)
+
+    if ($targetIsAdmin) {
+        # Admin keys go in administrators_authorized_keys: full admin over SSH, valid for EVERY admin account.
+        # Require a typed confirmation; Enter (or anything else) skips the step.
+        Write-Host ''
+        Write-Host 'WARNING: you are running setup from an ADMINISTRATOR account.' -ForegroundColor Yellow
+        Write-Host '  Adding the key here gives the bot FULL ADMINISTRATOR access to this PC over SSH,' -ForegroundColor Yellow
+        Write-Host '  and the key works for EVERY administrator account on this PC.' -ForegroundColor Yellow
+        Write-Host '  Recommended: give the bot its own standard Windows account instead.' -ForegroundColor Yellow
+        Write-Host '  See INSTALL.md, "Give the bot its own standard account". Press Enter to skip this step.' -ForegroundColor Yellow
+        $confirm = Read-Host 'Type ADMIN (capitals) to give the bot administrator SSH access anyway'
+        if ($confirm -cne 'ADMIN') {
+            Write-SetupLog 'Admin SSH key skipped. Recommended: a separate standard Windows account for the bot (INSTALL.md).' 'WARN'
+            return
+        }
+        Write-SetupLog 'Owner typed ADMIN: continuing with administrator SSH access for the bot.' 'WARN'
+    }
 
     if (Test-Path -LiteralPath $file) {
         foreach ($l in Get-Content -LiteralPath $file) {
